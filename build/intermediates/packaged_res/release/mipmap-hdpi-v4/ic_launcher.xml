@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    
+    <!-- Background circle -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+    
+    <!-- Spectrogram waves -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,16 L12,32 M16,14 L16,34 M20,18 L20,30 M24,12 L24,36 M28,20 L28,28 M32,15 L32,33 M36,17 L36,31"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+    
+    <!-- Audio symbol -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,20 L18,20 L22,16 L22,32 L18,28 L14,28 Z" />
+    
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,18 Q30,20 30,24 Q30,28 26,30"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FFFFFF"
+        android:fillType="nonZero" />
+        
+</vector>

@@ -1,0 +1,38 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.audioanalyzer.spectrogram-mergeReleaseResources-29:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "/Users/shuna/.gradle/caches/8.9/transforms/b98d092e11031792f02455e3f72a1ef0/transformed/appcompat-1.6.1/res/values-v16/values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "223"
+                    },
+                    "to": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "121",
+                        "endLines": "6",
+                        "endColumns": "12",
+                        "endOffsets": "289"
+                    }
+                },
+                {
+                    "source": "/Users/shuna/.gradle/caches/8.9/transforms/a616f2e35817638cfddf59530e95b35f/transformed/core-1.9.0/res/values-v16/values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
+                    }
+                }
+            ]
+        }
+    ]
+}

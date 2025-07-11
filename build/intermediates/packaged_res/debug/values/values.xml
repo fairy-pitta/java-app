@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools">
+    <color name="accent_color">#FF03DAC5</color>
+    <color name="black">#FF000000</color>
+    <color name="button_color">#FF2196F3</color>
+    <color name="button_color_pressed">#FF1976D2</color>
+    <color name="primary_color">#FF2196F3</color>
+    <color name="primary_dark">#FF1976D2</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_description">リアルタイムで音声を録音し、周波数スペクトログラムを表示します。\n録音ボタンを押して開始してください。</string>
+    <string name="app_name">音声スペクトログラム</string>
+    <string name="audiorecord_init_failed">AudioRecord初期化に失敗しました</string>
+    <string name="permission_granted">音声録音権限が許可されました</string>
+    <string name="permission_required">音声録音権限が必要です</string>
+    <string name="record_start">録音開始</string>
+    <string name="record_stop">停止</string>
+    <string name="spectrogram_title">リアルタイムスペクトログラム</string>
+    <style name="Theme.AudioSpectrogram" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        
+        <item name="colorPrimary">@color/primary_color</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <item name="colorSecondary">@color/accent_color</item>
+        <item name="colorSecondaryVariant">@color/accent_color</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        <item name="android:statusBarColor" ns1:targetApi="l">?attr/colorPrimaryVariant</item>
+        
+        <item name="android:windowBackground">@color/black</item>
+    </style>
+</resources>

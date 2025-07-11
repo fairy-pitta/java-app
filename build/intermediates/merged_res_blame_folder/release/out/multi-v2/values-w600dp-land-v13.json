@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.audioanalyzer.spectrogram-mergeReleaseResources-29:/values-w600dp-land-v13/values-w600dp-land-v13.xml",
+            "map": [
+                {
+                    "source": "/Users/shuna/.gradle/caches/8.9/transforms/318bfd8938874c9b60fabca2a98bff59/transformed/material-1.10.0/res/values-w600dp-land-v13/values-w600dp-land-v13.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "54",
+                        "endOffsets": "105"
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.1.4" type="partial_results">
+    <map id="UnsafeIntentLaunch">
+            <map id="unprotected">
+                <entry
+                    name="com.audioanalyzer.spectrogram.MainActivity"
+                    boolean="true"/>
+            </map>
+    </map>
+    <map id="UnusedResources">
+        <location id="R.string.record_stop"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="4"
+            column="13"
+            startOffset="118"
+            endLine="4"
+            endColumn="31"
+            endOffset="136"/>
+        <location id="R.string.app_description"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="8"
+            column="13"
+            startOffset="357"
+            endLine="8"
+            endColumn="35"
+            endOffset="379"/>
+        <location id="R.string.record_start"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="3"
+            column="13"
+            startOffset="72"
+            endLine="3"
+            endColumn="32"
+            endOffset="91"/>
+        <location id="R.string.audiorecord_init_failed"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="7"
+            column="13"
+            startOffset="283"
+            endLine="7"
+            endColumn="43"
+            endOffset="313"/>
+        <location id="R.color.button_color_pressed"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/colors.xml"
+            line="6"
+            column="12"
+            startOffset="195"
+            endLine="6"
+            endColumn="39"
+            endOffset="222"/>
+        <location id="R.drawable.ic_launcher_foreground"
+            file="${:*debug*sourceProvider*0*resDir*0}/drawable/ic_launcher_foreground.xml"
+            line="1"
+            column="1"
+            startOffset="0"
+            endLine="36"
+            endColumn="10"
+            endOffset="1147"/>
+        <location id="R.string.permission_granted"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="6"
+            column="13"
+            startOffset="221"
+            endLine="6"
+            endColumn="38"
+            endOffset="246"/>
+        <location id="R.string.permission_required"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="5"
+            column="13"
+            startOffset="161"
+            endLine="5"
+            endColumn="39"
+            endOffset="187"/>
+        <entry
+            name="model"
+            string="attr[colorPrimaryVariant(R)],color[black(U),button_color_pressed(D),primary_color(U),accent_color(U),button_color(U),white(U),primary_dark(U)],drawable[ic_launcher_foreground(D)],id[recordButton(U),spectrogramView(U)],layout[activity_main(U)],mipmap[ic_launcher(U)],string[permission_granted(D),permission_required(D),spectrogram_title(D),app_name(U),record_start(D),record_stop(D),audiorecord_init_failed(D),app_description(D)],style[Theme_AudioSpectrogram(U),Theme_MaterialComponents_DayNight_DarkActionBar(R)],xml[data_extraction_rules(D),backup_rules(D)];b^5,15^16^3^7^6^4^1^0;;;"/>
+        <location id="R.string.spectrogram_title"
+            file="${:*debug*sourceProvider*0*resDir*0}/values/strings.xml"
+            line="9"
+            column="13"
+            startOffset="454"
+            endLine="9"
+            endColumn="37"
+            endOffset="478"/>
+        <location id="R.xml.backup_rules"
+            file="${:*debug*sourceProvider*0*resDir*0}/xml/backup_rules.xml"
+            line="2"
+            column="1"
+            startOffset="39"
+            endLine="6"
+            endColumn="23"
+            endOffset="217"/>
+        <location id="R.xml.data_extraction_rules"
+            file="${:*debug*sourceProvider*0*resDir*0}/xml/data_extraction_rules.xml"
+            line="2"
+            column="1"
+            startOffset="39"
+            endLine="13"
+            endColumn="25"
+            endOffset="478"/>
+    </map>
+
+</incidents>

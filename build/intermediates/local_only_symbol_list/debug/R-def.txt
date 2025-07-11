@@ -1,0 +1,25 @@
+R_DEF: Internal format may change without notice
+local
+color accent_color
+color black
+color button_color
+color button_color_pressed
+color primary_color
+color primary_dark
+color white
+drawable ic_launcher_foreground
+id recordButton
+id spectrogramView
+layout activity_main
+mipmap ic_launcher
+string app_description
+string app_name
+string audiorecord_init_failed
+string permission_granted
+string permission_required
+string record_start
+string record_stop
+string spectrogram_title
+style Theme.AudioSpectrogram
+xml backup_rules
+xml data_extraction_rules

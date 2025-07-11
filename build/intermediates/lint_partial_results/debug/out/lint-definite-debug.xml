@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.1.4" type="incidents">
+
+    <incident
+        id="HardcodedText"
+        severity="warning"
+        message="Hardcoded string &quot;音声スペクトログラム解析&quot;, should use `@string` resource">
+        <location
+            file="${:*debug*sourceProvider*0*resDir*0}/layout/activity_main.xml"
+            line="13"
+            column="9"
+            startOffset="470"
+            endLine="13"
+            endColumn="36"
+            endOffset="497"/>
+    </incident>
+
+    <incident
+        id="HardcodedText"
+        severity="warning"
+        message="Hardcoded string &quot;録音開始&quot;, should use `@string` resource">
+        <location
+            file="${:*debug*sourceProvider*0*resDir*0}/layout/activity_main.xml"
+            line="38"
+            column="13"
+            startOffset="1344"
+            endLine="38"
+            endColumn="32"
+            endOffset="1363"/>
+    </incident>
+
+    <incident
+        id="HardcodedText"
+        severity="warning"
+        message="Hardcoded string &quot;リアルタイムで音声を録音し、周波数スペクトログラムを表示します。\n録音ボタンを押して開始してください。&quot;, should use `@string` resource">
+        <location
+            file="${:*debug*sourceProvider*0*resDir*0}/layout/activity_main.xml"
+            line="49"
+            column="9"
+            startOffset="1665"
+            endLine="49"
+            endColumn="76"
+            endOffset="1732"/>
+    </incident>
+
+    <incident
+        id="OldTargetApi"
+        severity="warning"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details.">
+        <fix-replace
+            description="Update targetSdkVersion to 35"
+            oldString="34"
+            replacement="35"/>
+        <location
+            file="${:*projectDir}/build.gradle"
+            line="12"
+            column="9"
+            startOffset="237"
+            endLine="12"
+            endColumn="21"
+            endOffset="249"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.appcompat:appcompat than 1.6.1 is available: 1.7.1">
+        <fix-replace
+            description="Change to 1.7.1"
+            family="Update versions"
+            oldString="1.6.1"
+            replacement="1.7.1"/>
+        <location
+            file="${:*projectDir}/build.gradle"
+            line="32"
+            column="20"
+            startOffset="737"
+            endLine="32"
+            endColumn="56"
+            endOffset="773"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of com.google.android.material:material than 1.10.0 is available: 1.12.0">
+        <fix-replace
+            description="Change to 1.12.0"
+            family="Update versions"
+            oldString="1.10.0"
+            replacement="1.12.0"/>
+        <location
+            file="${:*projectDir}/build.gradle"
+            line="33"
+            column="20"
+            startOffset="793"
+            endLine="33"
+            endColumn="65"
+            endOffset="838"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.constraintlayout:constraintlayout than 2.1.4 is available: 2.2.1">
+        <fix-replace
+            description="Change to 2.2.1"
+            family="Update versions"
+            oldString="2.1.4"
+            replacement="2.2.1"/>
+        <location
+            file="${:*projectDir}/build.gradle"
+            line="34"
+            column="20"
+            startOffset="858"
+            endLine="34"
+            endColumn="70"
+            endOffset="908"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.2.1">
+        <fix-replace
+            description="Change to 1.2.1"
+            family="Update versions"
+            oldString="1.1.5"
+            replacement="1.2.1"/>
+        <location
+            file="${:*projectDir}/build.gradle"
+            line="36"
+            column="31"
+            startOffset="983"
+            endLine="36"
+            endColumn="62"
+            endOffset="1014"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.6.1">
+        <fix-replace
+            description="Change to 3.6.1"
+            family="Update versions"
+            oldString="3.5.1"
+            replacement="3.6.1"/>
+        <location
+            file="${:*projectDir}/build.gradle"
+            line="37"
+            column="31"
+            startOffset="1045"
+            endLine="37"
+            endColumn="75"
+            endOffset="1089"/>
+    </incident>
+
+    <incident
+        id="Overdraw"
+        severity="warning"
+        message="Possible overdraw: Root element paints background `@android:color/black` with a theme that also paints a background (inferred theme is `@style/Theme_AudioSpectrogram`)">
+        <location
+            file="${:*debug*sourceProvider*0*resDir*0}/layout/activity_main.xml"
+            line="7"
+            column="5"
+            startOffset="288"
+            endLine="7"
+            endColumn="46"
+            endOffset="329"/>
+    </incident>
+
+</incidents>

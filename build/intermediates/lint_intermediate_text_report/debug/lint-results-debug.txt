@@ -1,0 +1,190 @@
+/Users/shuna/java-app/src/main/AndroidManifest.xml:6: Warning: WRITE_EXTERNAL_STORAGE no longer provides write access when targeting Android 10+ [ScopedStorage]
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ScopedStorage":
+   Scoped storage is enforced on Android 10+ (or Android 11+ if using
+   requestLegacyExternalStorage). In particular, WRITE_EXTERNAL_STORAGE will
+   no longer provide write access to all files; it will provide the equivalent
+   of READ_EXTERNAL_STORAGE instead.
+
+   As of Android 13, if you need to query or interact with MediaStore or media
+   files on the shared storage, you should be using instead one or more new
+   storage permissions:
+   * android.permission.READ_MEDIA_IMAGES
+   * android.permission.READ_MEDIA_VIDEO
+   * android.permission.READ_MEDIA_AUDIO
+
+   and then add maxSdkVersion="33" to the older permission. See the developer
+   guide for how to do this:
+   https://developer.android.com/about/versions/13/behavior-changes-13#granula
+   r-media-permissions
+
+   The MANAGE_EXTERNAL_STORAGE permission can be used to manage all files, but
+   it is rarely necessary and most apps on Google Play are not allowed to use
+   it. Most apps should instead migrate to use scoped storage. To modify or
+   delete files, apps should request write access from the user as described
+   at https://goo.gle/android-mediastore-createwriterequest.
+
+   To learn more, read these resources: Play policy:
+   https://goo.gle/policy-storage-help Allowable use cases:
+   https://goo.gle/policy-storage-usecases
+
+   https://goo.gle/android-storage-usecases
+
+/Users/shuna/java-app/build.gradle:12: Warning: Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details. [OldTargetApi]
+        targetSdk 34
+        ~~~~~~~~~~~~
+
+   Explanation for issues of type "OldTargetApi":
+   When your application runs on a version of Android that is more recent than
+   your targetSdkVersion specifies that it has been tested with, various
+   compatibility modes kick in. This ensures that your application continues
+   to work, but it may look out of place. For example, if the targetSdkVersion
+   is less than 14, your app may get an option button in the UI.
+
+   To fix this issue, set the targetSdkVersion to the highest available value.
+   Then test your app to make sure everything works correctly. You may want to
+   consult the compatibility notes to see what changes apply to each version
+   you are adding support for:
+   https://developer.android.com/reference/android/os/Build.VERSION_CODES.html
+   as well as follow this guide:
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.
+   html
+
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.html
+
+/Users/shuna/java-app/build.gradle:32: Warning: A newer version of androidx.appcompat:appcompat than 1.6.1 is available: 1.7.1 [GradleDependency]
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/build.gradle:33: Warning: A newer version of com.google.android.material:material than 1.10.0 is available: 1.12.0 [GradleDependency]
+    implementation 'com.google.android.material:material:1.10.0'
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/build.gradle:34: Warning: A newer version of androidx.constraintlayout:constraintlayout than 2.1.4 is available: 2.2.1 [GradleDependency]
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/build.gradle:36: Warning: A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.2.1 [GradleDependency]
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/build.gradle:37: Warning: A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.6.1 [GradleDependency]
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "GradleDependency":
+   This detector looks for usages of libraries where the version you are using
+   is not the current stable release. Using older versions is fine, and there
+   are cases where you deliberately want to stick with an older version.
+   However, you may simply not be aware that a more recent version is
+   available, and that is what this lint check helps find.
+
+/Users/shuna/java-app/src/main/res/values/themes.xml:13: Warning: Unnecessary; SDK_INT is always >= 21 [ObsoleteSdkInt]
+        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+                                            ~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ObsoleteSdkInt":
+   This check flags version checks that are not necessary, because the
+   minSdkVersion (or surrounding known API level) is already at least as high
+   as the version checked for.
+
+   Similarly, it also looks for resources in -vNN folders, such as values-v14
+   where the version qualifier is less than or equal to the minSdkVersion,
+   where the contents should be merged into the best folder.
+
+/Users/shuna/java-app/src/main/res/layout/activity_main.xml:7: Warning: Possible overdraw: Root element paints background @android:color/black with a theme that also paints a background (inferred theme is @style/Theme_AudioSpectrogram) [Overdraw]
+    android:background="@android:color/black"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "Overdraw":
+   If you set a background drawable on a root view, then you should use a
+   custom theme where the theme background is null. Otherwise, the theme
+   background will be painted first, only to have your custom background
+   completely cover it; this is called "overdraw".
+
+   NOTE: This detector relies on figuring out which layouts are associated
+   with which activities based on scanning the Java code, and it's currently
+   doing that using an inexact pattern matching algorithm. Therefore, it can
+   incorrectly conclude which activity the layout is associated with and then
+   wrongly complain that a background-theme is hidden.
+
+   If you want your custom background on multiple pages, then you should
+   consider making a custom theme with your custom background and just using
+   that theme instead of a root element background.
+
+   Of course it's possible that your custom drawable is translucent and you
+   want it to be mixed with the background. However, you will get better
+   performance if you pre-mix the background with your drawable and use that
+   resulting image or color as a custom theme background instead.
+
+/Users/shuna/java-app/src/main/res/xml/backup_rules.xml:2: Warning: The resource R.xml.backup_rules appears to be unused [UnusedResources]
+<full-backup-content>
+^
+/Users/shuna/java-app/src/main/res/values/colors.xml:6: Warning: The resource R.color.button_color_pressed appears to be unused [UnusedResources]
+    <color name="button_color_pressed">#FF1976D2</color>
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/xml/data_extraction_rules.xml:2: Warning: The resource R.xml.data_extraction_rules appears to be unused [UnusedResources]
+<data-extraction-rules>
+^
+/Users/shuna/java-app/src/main/res/drawable/ic_launcher_foreground.xml:1: Warning: The resource R.drawable.ic_launcher_foreground appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/Users/shuna/java-app/src/main/res/values/strings.xml:3: Warning: The resource R.string.record_start appears to be unused [UnusedResources]
+    <string name="record_start">録音開始</string>
+            ~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/values/strings.xml:4: Warning: The resource R.string.record_stop appears to be unused [UnusedResources]
+    <string name="record_stop">停止</string>
+            ~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/values/strings.xml:5: Warning: The resource R.string.permission_required appears to be unused [UnusedResources]
+    <string name="permission_required">音声録音権限が必要です</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/values/strings.xml:6: Warning: The resource R.string.permission_granted appears to be unused [UnusedResources]
+    <string name="permission_granted">音声録音権限が許可されました</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/values/strings.xml:7: Warning: The resource R.string.audiorecord_init_failed appears to be unused [UnusedResources]
+    <string name="audiorecord_init_failed">AudioRecord初期化に失敗しました</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/values/strings.xml:8: Warning: The resource R.string.app_description appears to be unused [UnusedResources]
+    <string name="app_description">リアルタイムで音声を録音し、周波数スペクトログラムを表示します。\n録音ボタンを押して開始してください。</string>
+            ~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/values/strings.xml:9: Warning: The resource R.string.spectrogram_title appears to be unused [UnusedResources]
+    <string name="spectrogram_title">リアルタイムスペクトログラム</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "UnusedResources":
+   Unused resources make applications larger and slow down builds.
+
+
+   The unused resource check can ignore tests. If you want to include
+   resources that are only referenced from tests, consider packaging them in a
+   test source set instead.
+
+   You can include test sources in the unused resource check by setting the
+   system property lint.unused-resources.include-tests =true, and to exclude
+   them (usually for performance reasons), use
+   lint.unused-resources.exclude-tests =true.
+   ,
+
+/Users/shuna/java-app/src/main/res/layout/activity_main.xml:13: Warning: Hardcoded string "音声スペクトログラム解析", should use @string resource [HardcodedText]
+        android:text="音声スペクトログラム解析"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/layout/activity_main.xml:38: Warning: Hardcoded string "録音開始", should use @string resource [HardcodedText]
+            android:text="録音開始"
+            ~~~~~~~~~~~~~~~~~~~
+/Users/shuna/java-app/src/main/res/layout/activity_main.xml:49: Warning: Hardcoded string "リアルタイムで音声を録音し、周波数スペクトログラムを表示します。n録音ボタンを押して開始してください。", should use @string resource [HardcodedText]
+        android:text="リアルタイムで音声を録音し、周波数スペクトログラムを表示します。\n録音ボタンを押して開始してください。"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "HardcodedText":
+   Hardcoding text attributes directly in layout files is bad for several
+   reasons:
+
+   * When creating configuration variations (for example for landscape or
+   portrait) you have to repeat the actual text (and keep it up to date when
+   making changes)
+
+   * The application cannot be translated to other languages by just adding
+   new translations for existing string resources.
+
+   There are quickfixes to automatically extract this hardcoded string into a
+   resource lookup.
+
+0 errors, 23 warnings
