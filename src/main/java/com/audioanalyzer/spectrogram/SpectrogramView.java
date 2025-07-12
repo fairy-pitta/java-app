@@ -12,26 +12,33 @@ import android.view.View;
 // 履歴配列が不要になったためimportも削除
 
 public class SpectrogramView extends View {
-    // MAX_HISTORYは不要になったため削除
+    private static final String TAG = "SpectrogramView";
     private static final int SAMPLE_RATE = 16000;
+    private static final int MEL_BINS = 64;
     
-    // 履歴配列は不要になったため削除
+    private Bitmap spectrogramBitmap;
+    private Canvas spectrogramCanvas;
     private Paint paint;
     private Paint textPaint;
     private Paint gridPaint;
-    private Bitmap spectrogramBitmap;
-    private Canvas spectrogramCanvas;
     private int viewWidth;
     private int viewHeight;
     private double maxMagnitude = -20; // dB
     private double minMagnitude = -80; // dB
     private static int logCount = 0; // デバッグ用カウンター
-    // 更新時間制御とスクロールオフセットは不要になったため削除
     
-    // 動的レンジ調整のための変数（より感度の高い初期値）
-    private double adaptiveMinMagnitude = -60; // より高い最小値
-    private double adaptiveMaxMagnitude = -10; // より高い最大値
-    private static final double DYNAMIC_RANGE_ALPHA = 0.2; // より高い適応速度
+    // 動的レンジ調整のための変数
+    private double adaptiveMinMagnitude = -80.0;
+    private double adaptiveMaxMagnitude = -20.0;
+    private static final double DYNAMIC_RANGE_ALPHA = 0.1; // 適応速度
+    
+    // カラーマップLUT（事前計算）
+    private int[] colorMapLUT;
+    private static final int LUT_SIZE = 256;
+    
+    // スレッドセーフなフレーム管理
+    private final Object lock = new Object();
+    private double[] latestFrame = null;
     
     // カラーマップLUT
     private int[] colorLUT = new int[256];
@@ -136,19 +143,17 @@ public class SpectrogramView extends View {
         }
     }
     
-    public void updateSpectrogram(double[] magnitudes) {
-        if (magnitudes == null || viewWidth <= 0 || viewHeight <= 0) {
-            android.util.Log.w("SpectrogramView", "updateSpectrogram: 無効なパラメータ - magnitudes=" + (magnitudes != null ? magnitudes.length : "null") + ", viewWidth=" + viewWidth + ", viewHeight=" + viewHeight);
-            return;
+    // スレッドセーフなフレーム受信メソッド
+    public void pushFrame(double[] magnitudes) {
+        synchronized (lock) {
+            latestFrame = magnitudes;
         }
-        
-        android.util.Log.d("SpectrogramView", "スペクトログラム更新開始 - データ長: " + magnitudes.length);
-        
-        // 動的レンジ調整
-        updateDynamicRange(magnitudes);
-        
-        // 高速描画方式を使用
-        redrawSpectrogramFast(magnitudes);
+        postInvalidateOnAnimation(); // 60fpsでOS管理の描画トリガ
+    }
+    
+    // 従来のupdateSpectrogramは互換性のため残す
+    public void updateSpectrogram(double[] magnitudes) {
+        pushFrame(magnitudes);
     }
     
     private void updateDynamicRange(double[] magnitudes) {
@@ -293,36 +298,7 @@ public class SpectrogramView extends View {
         return (Math.exp(mel * Math.log(1 + 4000.0 / 700.0)) - 1) * 700.0 / 4000.0;
     }
     
-    private void redrawSpectrogramFast(double[] magnitudes) {
-        if (spectrogramBitmap == null || spectrogramCanvas == null) {
-            return;
-        }
-        
-        // ❶ 既存ビットマップを 1px 左へコピー
-        spectrogramCanvas.drawBitmap(spectrogramBitmap, -1, 0, null);
-        
-        // ❷ 右端 1px の縦列を最新フレームで塗る
-        Paint p = new Paint();
-        p.setAntiAlias(false);
-        p.setStyle(Paint.Style.FILL);
-        
-        int h = spectrogramBitmap.getHeight();
-        for (int i = 0; i < magnitudes.length; i++) {
-            p.setColor(magnitudeToColorLUT(magnitudes[i]));
-            int y0 = h - (i + 1) * h / magnitudes.length;
-            int y1 = h - i * h / magnitudes.length;
-            spectrogramCanvas.drawRect(viewWidth - 1, y0, viewWidth, y1, p);
-        }
-        
-        // UI スレッドで 60 fps 呼び出し
-        postInvalidateOnAnimation();
-        
-        // デバッグ情報をログ出力（最初の数回のみ）
-        if (logCount < 3) {
-            android.util.Log.d("SpectrogramView", "redrawSpectrogramFast: magnitudes.length=" + magnitudes.length + ", width=" + viewWidth + ", height=" + h);
-            logCount++;
-        }
-    }
+
     
     private int magnitudeToColorLUT(double magnitude) {
         // NaNや無限大の値をチェック
@@ -362,21 +338,7 @@ public class SpectrogramView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         
-        android.util.Log.d("SpectrogramView", "onDraw呼び出し: bitmap=" + (spectrogramBitmap != null) + ", canvas=" + (canvas != null));
-        
-        if (spectrogramBitmap != null) {
-            android.util.Log.d("SpectrogramView", "ビットマップ描画: size=" + spectrogramBitmap.getWidth() + "x" + spectrogramBitmap.getHeight());
-            canvas.drawBitmap(spectrogramBitmap, 0, 0, null);
-            
-            // 現在の時刻を示す赤い線を右端に描画
-            Paint timePaint = new Paint();
-            timePaint.setColor(Color.RED);
-            timePaint.setStrokeWidth(3);
-            timePaint.setAlpha(200);
-            canvas.drawLine(viewWidth - 2, 0, viewWidth - 2, viewHeight, timePaint);
-            
-        } else {
-            android.util.Log.w("SpectrogramView", "ビットマップがnullです");
+        if (spectrogramBitmap == null) {
             // 背景をグラデーションで塗りつぶし
             Paint gradientPaint = new Paint();
             gradientPaint.setColor(Color.rgb(20, 20, 40));
@@ -388,11 +350,57 @@ public class SpectrogramView extends View {
             messagePaint.setTextSize(32);
             messagePaint.setTextAlign(Paint.Align.CENTER);
             canvas.drawText("スペクトログラムデータ待機中...", viewWidth / 2, viewHeight / 2, messagePaint);
+            return;
         }
+        
+        // 最新フレームをスレッドセーフに取得
+        double[] frame;
+        synchronized (lock) {
+            frame = latestFrame;
+            latestFrame = null; // 一度使ったらクリア
+        }
+        
+        // フレームが来たときだけ1px左シフト＆描画
+        if (frame != null) {
+            updateDynamicRange(frame);
+            blit1px(frame);
+        }
+        
+        // ビットマップを描画
+        canvas.drawBitmap(spectrogramBitmap, 0, 0, null);
+        
+        // 現在の時刻を示す赤い線を右端に描画
+        Paint timePaint = new Paint();
+        timePaint.setColor(Color.RED);
+        timePaint.setStrokeWidth(3);
+        timePaint.setAlpha(200);
+        canvas.drawLine(viewWidth - 2, 0, viewWidth - 2, viewHeight, timePaint);
         
         // グリッドと軸ラベルを描画
         drawGrid(canvas);
         drawLabels(canvas);
+    }
+    
+    private void blit1px(double[] magnitudes) {
+        if (spectrogramBitmap == null || spectrogramCanvas == null) {
+            return;
+        }
+        
+        // ❶ 既存ビットマップを 1px 左へコピー
+        spectrogramCanvas.drawBitmap(spectrogramBitmap, -1, 0, null);
+        
+        // ❷ 右端 1px の縦列を最新フレームで塗る
+        Paint p = new Paint();
+        p.setAntiAlias(false);
+        p.setStyle(Paint.Style.FILL);
+        
+        int h = spectrogramBitmap.getHeight();
+        for (int i = 0; i < magnitudes.length; i++) {
+            p.setColor(magnitudeToColorLUT(magnitudes[i]));
+            int y0 = h - (i + 1) * h / magnitudes.length;
+            int y1 = h - i * h / magnitudes.length;
+            spectrogramCanvas.drawRect(viewWidth - 1, y0, viewWidth, y1, p);
+        }
     }
     
     private void drawGrid(Canvas canvas) {

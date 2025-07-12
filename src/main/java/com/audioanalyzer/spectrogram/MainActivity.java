@@ -217,43 +217,47 @@ public class MainActivity extends AppCompatActivity {
     private void recordAudio() {
         android.util.Log.d("AudioSpectrogram", "recordAudio()開始");
         
-        // FFTサイズを512に固定（32ms @16kHz で約31fps）
-        final int FFT_SIZE = 512;
-        final short[] pcm = new short[FFT_SIZE];
-        final FFTProcessor fft = new FFTProcessor(FFT_SIZE);
+        // 50%オーバラップで62.5fps実現（256サンプル = 16ms @16kHz）
+        final int HOP = 256;
+        final short[] pcm = new short[HOP];
+        final short[] amp = new short[HOP]; // 再利用バッファ
+        final FFTProcessor fft = new FFTProcessor(HOP);
         
-        // 入力ゲイン調整用の係数
-        final double INPUT_GAIN = 10.0; // 入力信号を10倍に増幅
-        
-        android.util.Log.d("AudioSpectrogram", "録音ループ開始 - FFT_SIZE: " + FFT_SIZE);
+        android.util.Log.d("AudioSpectrogram", "録音ループ開始 - HOP: " + HOP + " (非ブロッキングモード)");
         
         int frameCount = 0;
+        int zeroReadCount = 0;
         
         while (isRecording && audioRecord != null) {
             try {
-                int read = audioRecord.read(pcm, 0, FFT_SIZE);
-                frameCount++;
+                // 非ブロッキング読み込みでバッファ待機を回避
+                int got = audioRecord.read(pcm, 0, HOP, android.media.AudioRecord.READ_NON_BLOCKING);
                 
-                if (read > 0) {
-                    // 入力ゲインを適用
-                    short[] amplifiedBuffer = new short[read];
-                    for (int i = 0; i < read; i++) {
-                        double amplified = pcm[i] * INPUT_GAIN;
-                        // クリッピング防止
-                        amplifiedBuffer[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, amplified));
-                    }
-                    
-                    // メルスペクトログラム処理を実行
-                    double[] mel = fft.processMelSpectrogram(amplifiedBuffer, read);
-                    
-                    // UIスレッドで更新（postを使用して高速化）
-                    spectrogramView.post(() -> spectrogramView.updateSpectrogram(mel));
-                    
-                    // デバッグログ（最初の数フレームのみ）
-                    if (frameCount <= 5 || frameCount % 100 == 0) {
-                        android.util.Log.d("AudioSpectrogram", "フレーム " + frameCount + ": read=" + read + ", mel.length=" + mel.length);
-                    }
+                if (got <= 0) {
+                    zeroReadCount++;
+                    continue; // データ無し → 次ループ
                 }
+                
+                frameCount++;
+                zeroReadCount = 0; // 正常読み込み時はリセット
+                
+                // 入力ゲインを省メモリで適用（配列再利用）
+                for (int i = 0; i < got; i++) {
+                    int v = (int)(pcm[i] * 8); // 8倍ゲイン
+                    amp[i] = (short)Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, v));
+                }
+                
+                // メルスペクトログラム処理を実行
+                double[] mel = fft.processMelSpectrogram(amp, got);
+                
+                // UIへは「描いてね」だけ投げる（スレッドセーフ）
+                spectrogramView.pushFrame(mel);
+                
+                // デバッグログ（最初の数フレームのみ）
+                if (frameCount <= 5 || frameCount % 100 == 0) {
+                    android.util.Log.d("AudioSpectrogram", "フレーム " + frameCount + ": got=" + got + ", mel.length=" + mel.length + ", zeroReads=" + zeroReadCount);
+                }
+                
             } catch (Exception e) {
                 android.util.Log.e("AudioSpectrogram", "recordAudio()でエラー発生", e);
                 break;
