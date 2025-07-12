@@ -217,135 +217,46 @@ public class MainActivity extends AppCompatActivity {
     private void recordAudio() {
         android.util.Log.d("AudioSpectrogram", "recordAudio()開始");
         
-        // バッファサイズを最小にして最大速度を実現
-        int minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-        int bufferSize = Math.max(minBufferSize, 512); // 最小512サンプル
-        short[] audioBuffer = new short[bufferSize];
-        FFTProcessor fftProcessor = new FFTProcessor(bufferSize);
+        // FFTサイズを512に固定（32ms @16kHz で約31fps）
+        final int FFT_SIZE = 512;
+        final short[] pcm = new short[FFT_SIZE];
+        final FFTProcessor fft = new FFTProcessor(FFT_SIZE);
         
         // 入力ゲイン調整用の係数
         final double INPUT_GAIN = 10.0; // 入力信号を10倍に増幅
         
-        android.util.Log.d("AudioSpectrogram", "録音ループ開始 - bufferSize: " + bufferSize);
+        android.util.Log.d("AudioSpectrogram", "録音ループ開始 - FFT_SIZE: " + FFT_SIZE);
         
         int frameCount = 0;
-        int consecutiveErrors = 0;
-        final int MAX_CONSECUTIVE_ERRORS = 10;
         
-        while (isRecording && audioRecord != null && consecutiveErrors < MAX_CONSECUTIVE_ERRORS) {
+        while (isRecording && audioRecord != null) {
             try {
-                int bytesRead = audioRecord.read(audioBuffer, 0, bufferSize);
+                int read = audioRecord.read(pcm, 0, FFT_SIZE);
                 frameCount++;
                 
-                // 詳細ログは最初の数フレームのみ
-                if (frameCount <= 5 || frameCount % 100 == 0) {
-                    android.util.Log.d("AudioSpectrogram", "フレーム " + frameCount + ": bytesRead=" + bytesRead);
-                }
-                
-                if (bytesRead > 0) {
-                    // 正常な読み取りの場合、エラーカウンターをリセット
-                    consecutiveErrors = 0;
-                    
-                    // 音声データの統計情報をログ出力（最初の数フレームのみ）
-                    if (frameCount <= 3) {
-                        int maxValue = 0;
-                        int minValue = 0;
-                        long sum = 0;
-                        for (int i = 0; i < bytesRead; i++) {
-                            short sample = audioBuffer[i];
-                            if (sample > maxValue) maxValue = sample;
-                            if (sample < minValue) minValue = sample;
-                            sum += Math.abs(sample);
-                        }
-                        double average = (double) sum / bytesRead;
-                        
-                        android.util.Log.d("AudioSpectrogram", "音声データ統計 - Max: " + maxValue + ", Min: " + minValue + ", Avg: " + String.format("%.2f", average));
-                        
-                        // 最初の10サンプルをログ出力（デバッグ用）
-                        StringBuilder samples = new StringBuilder("最初の10サンプル: ");
-                        for (int i = 0; i < Math.min(10, bytesRead); i++) {
-                            samples.append(audioBuffer[i]).append(" ");
-                        }
-                        android.util.Log.d("AudioSpectrogram", samples.toString());
-                    }
-                    
+                if (read > 0) {
                     // 入力ゲインを適用
-                    short[] amplifiedBuffer = new short[bytesRead];
-                    for (int i = 0; i < bytesRead; i++) {
-                        double amplified = audioBuffer[i] * INPUT_GAIN;
+                    short[] amplifiedBuffer = new short[read];
+                    for (int i = 0; i < read; i++) {
+                        double amplified = pcm[i] * INPUT_GAIN;
                         // クリッピング防止
                         amplifiedBuffer[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, amplified));
                     }
                     
                     // メルスペクトログラム処理を実行
-                    if (frameCount <= 3) {
-                        android.util.Log.d("AudioSpectrogram", "メルスペクトログラム処理開始（ゲイン適用後）");
-                    }
+                    double[] mel = fft.processMelSpectrogram(amplifiedBuffer, read);
                     
-                    double[] melResult = fftProcessor.processMelSpectrogram(amplifiedBuffer, bytesRead);
+                    // UIスレッドで更新（postを使用して高速化）
+                    spectrogramView.post(() -> spectrogramView.updateSpectrogram(mel));
                     
-                    if (frameCount <= 3) {
-                        android.util.Log.d("AudioSpectrogram", "メルスペクトログラム処理完了: melResult.length=" + melResult.length);
-                        
-                        // メルスペクトログラム結果の統計情報をログ出力（最初の数フレームのみ）
-                        double maxMel = Double.MIN_VALUE;
-                        double minMel = Double.MAX_VALUE;
-                        double sumMel = 0;
-                        for (double value : melResult) {
-                            if (value > maxMel) maxMel = value;
-                            if (value < minMel) minMel = value;
-                            sumMel += value;
-                        }
-                        double avgMel = sumMel / melResult.length;
-                        
-                        android.util.Log.d("AudioSpectrogram", "メルスペクトログラム結果統計 - Max: " + String.format("%.2f", maxMel) + ", Min: " + String.format("%.2f", minMel) + ", Avg: " + String.format("%.2f", avgMel));
-                    }
-                    
-                    // UIスレッドでメルスペクトログラムを更新
-                    final int currentFrame = frameCount;
-                    mainHandler.post(() -> {
-                        if (spectrogramView != null) {
-                            spectrogramView.updateSpectrogram(melResult);
-                            if (currentFrame <= 3 || currentFrame % 100 == 0) {
-                                android.util.Log.d("AudioSpectrogram", "メルスペクトログラム更新完了 - フレーム " + currentFrame);
-                            }
-                        }
-                    });
-                } else if (bytesRead == AudioRecord.ERROR_INVALID_OPERATION) {
-                    consecutiveErrors++;
-                    android.util.Log.e("AudioSpectrogram", "AudioRecord ERROR_INVALID_OPERATION (エラー回数: " + consecutiveErrors + ")");
-                    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                        android.util.Log.e("AudioSpectrogram", "連続エラー上限に達したため録音を停止");
-                        break;
-                    }
-                    // 短時間待機してリトライ
-                    try { Thread.sleep(10); } catch (InterruptedException ie) { break; }
-                } else if (bytesRead == AudioRecord.ERROR_BAD_VALUE) {
-                    consecutiveErrors++;
-                    android.util.Log.e("AudioSpectrogram", "AudioRecord ERROR_BAD_VALUE (エラー回数: " + consecutiveErrors + ")");
-                    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                        android.util.Log.e("AudioSpectrogram", "連続エラー上限に達したため録音を停止");
-                        break;
-                    }
-                    // 短時間待機してリトライ
-                    try { Thread.sleep(10); } catch (InterruptedException ie) { break; }
-                } else {
-                    consecutiveErrors++;
-                    android.util.Log.w("AudioSpectrogram", "予期しないbytesRead値: " + bytesRead + " (エラー回数: " + consecutiveErrors + ")");
-                    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                        android.util.Log.e("AudioSpectrogram", "連続エラー上限に達したため録音を停止");
-                        break;
+                    // デバッグログ（最初の数フレームのみ）
+                    if (frameCount <= 5 || frameCount % 100 == 0) {
+                        android.util.Log.d("AudioSpectrogram", "フレーム " + frameCount + ": read=" + read + ", mel.length=" + mel.length);
                     }
                 }
             } catch (Exception e) {
-                consecutiveErrors++;
-                android.util.Log.e("AudioSpectrogram", "recordAudio()でエラー発生 (エラー回数: " + consecutiveErrors + ")", e);
-                if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                    android.util.Log.e("AudioSpectrogram", "連続エラー上限に達したため録音を停止");
-                    break;
-                }
-                // 短時間待機してリトライ
-                try { Thread.sleep(50); } catch (InterruptedException ie) { break; }
+                android.util.Log.e("AudioSpectrogram", "recordAudio()でエラー発生", e);
+                break;
             }
         }
         

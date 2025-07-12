@@ -9,14 +9,13 @@ import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.View;
 
-import java.util.ArrayList;
-import java.util.List;
+// 履歴配列が不要になったためimportも削除
 
 public class SpectrogramView extends View {
-    private static final int MAX_HISTORY = 200; // スペクトログラムの履歴数
+    // MAX_HISTORYは不要になったため削除
     private static final int SAMPLE_RATE = 16000;
     
-    private List<double[]> spectrogramHistory;
+    // 履歴配列は不要になったため削除
     private Paint paint;
     private Paint textPaint;
     private Paint gridPaint;
@@ -27,11 +26,7 @@ public class SpectrogramView extends View {
     private double maxMagnitude = -20; // dB
     private double minMagnitude = -80; // dB
     private static int logCount = 0; // デバッグ用カウンター
-    private long lastUpdateTime = 0; // 最後の更新時間
-    private static final long UPDATE_INTERVAL_MS = 1; // 更新間隔（ミリ秒）- 最大速度
-    
-    // 水平オフセット方式のための変数
-    private int scrollOffset = 0;
+    // 更新時間制御とスクロールオフセットは不要になったため削除
     
     // 動的レンジ調整のための変数（より感度の高い初期値）
     private double adaptiveMinMagnitude = -60; // より高い最小値
@@ -57,8 +52,6 @@ public class SpectrogramView extends View {
     }
     
     private void init() {
-        spectrogramHistory = new ArrayList<>();
-        
         paint = new Paint();
         paint.setAntiAlias(true);
         
@@ -131,7 +124,6 @@ public class SpectrogramView extends View {
         
         viewWidth = w;
         viewHeight = h;
-        scrollOffset = 0; // オフセットをリセット
         
         android.util.Log.d("SpectrogramView", "onSizeChanged: " + w + "x" + h);
         
@@ -141,41 +133,22 @@ public class SpectrogramView extends View {
             spectrogramCanvas.drawColor(Color.BLACK);
             
             android.util.Log.d("SpectrogramView", "ビットマップ作成完了: " + w + "x" + h);
-            
-
         }
     }
     
     public void updateSpectrogram(double[] magnitudes) {
-        long currentTime = System.currentTimeMillis();
-        
         if (magnitudes == null || viewWidth <= 0 || viewHeight <= 0) {
             android.util.Log.w("SpectrogramView", "updateSpectrogram: 無効なパラメータ - magnitudes=" + (magnitudes != null ? magnitudes.length : "null") + ", viewWidth=" + viewWidth + ", viewHeight=" + viewHeight);
             return;
         }
-        
-        // 最大速度のため更新頻度制御を無効化
-        lastUpdateTime = currentTime;
         
         android.util.Log.d("SpectrogramView", "スペクトログラム更新開始 - データ長: " + magnitudes.length);
         
         // 動的レンジ調整
         updateDynamicRange(magnitudes);
         
-        // 履歴に追加
-        spectrogramHistory.add(magnitudes.clone());
-        
-        // 履歴サイズを制限（画面幅まで保持）
-        int maxHistorySize = spectrogramBitmap != null ? spectrogramBitmap.getWidth() : MAX_HISTORY;
-        while (spectrogramHistory.size() > maxHistorySize) {
-            spectrogramHistory.remove(0);
-        }
-        
-        // スペクトログラムを再描画
-        redrawSpectrogram();
-        
-        // ビューを更新
-        invalidate();
+        // 高速描画方式を使用
+        redrawSpectrogramFast(magnitudes);
     }
     
     private void updateDynamicRange(double[] magnitudes) {
@@ -320,56 +293,35 @@ public class SpectrogramView extends View {
         return (Math.exp(mel * Math.log(1 + 4000.0 / 700.0)) - 1) * 700.0 / 4000.0;
     }
     
-    private void redrawSpectrogram() {
+    private void redrawSpectrogramFast(double[] magnitudes) {
         if (spectrogramBitmap == null || spectrogramCanvas == null) {
             return;
         }
         
-        int width = spectrogramBitmap.getWidth();
-        int height = spectrogramBitmap.getHeight();
+        // ❶ 既存ビットマップを 1px 左へコピー
+        spectrogramCanvas.drawBitmap(spectrogramBitmap, -1, 0, null);
         
-        // 背景を黒でクリア（完全に塗りつぶし）
-        spectrogramCanvas.drawColor(Color.BLACK);
+        // ❷ 右端 1px の縦列を最新フレームで塗る
+        Paint p = new Paint();
+        p.setAntiAlias(false);
+        p.setStyle(Paint.Style.FILL);
         
-        // 描画用ペイントを設定
-        Paint drawPaint = new Paint();
-        drawPaint.setAntiAlias(false); // アンチエイリアスを無効にして正確な描画
-        drawPaint.setStyle(Paint.Style.FILL);
-        
-        int historySize = spectrogramHistory.size();
-        
-        if (historySize == 0) {
-            return; // 履歴がない場合は何も描画しない
+        int h = spectrogramBitmap.getHeight();
+        for (int i = 0; i < magnitudes.length; i++) {
+            p.setColor(magnitudeToColorLUT(magnitudes[i]));
+            int y0 = h - (i + 1) * h / magnitudes.length;
+            int y1 = h - i * h / magnitudes.length;
+            spectrogramCanvas.drawRect(viewWidth - 1, y0, viewWidth, y1, p);
         }
         
-        // 最新のデータから順番に描画（右端から左へ）
-        for (int historyIndex = 0; historyIndex < Math.min(historySize, width); historyIndex++) {
-            double[] magnitudes = spectrogramHistory.get(historySize - 1 - historyIndex);
-            
-            // 描画位置を計算（右端から左に向かって描画）
-            int columnX = width - 1 - historyIndex;
-            
-            // 各周波数バンドを描画
-            for (int freqIndex = 0; freqIndex < magnitudes.length; freqIndex++) {
-                int color = magnitudeToColorLUT(magnitudes[freqIndex]);
-                drawPaint.setColor(color);
-                
-                // Y座標は周波数（上が高周波、下が低周波）
-                int yStart = height - (int) ((double) (freqIndex + 1) / magnitudes.length * height);
-                int yEnd = height - (int) ((double) freqIndex / magnitudes.length * height);
-                int rowHeight = Math.max(1, yEnd - yStart);
-                
-                // 1ピクセル幅の矩形を描画（隙間なく描画）
-                spectrogramCanvas.drawRect(columnX, yStart, columnX + 1, yStart + rowHeight, drawPaint);
-            }
-        }
+        // UI スレッドで 60 fps 呼び出し
+        postInvalidateOnAnimation();
         
         // デバッグ情報をログ出力（最初の数回のみ）
         if (logCount < 3) {
-            android.util.Log.d("SpectrogramView", "redrawSpectrogram: historySize=" + historySize + ", width=" + width + ", height=" + height);
+            android.util.Log.d("SpectrogramView", "redrawSpectrogramFast: magnitudes.length=" + magnitudes.length + ", width=" + viewWidth + ", height=" + h);
+            logCount++;
         }
-        
-        invalidate();
     }
     
     private int magnitudeToColorLUT(double magnitude) {
