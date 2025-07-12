@@ -2,7 +2,13 @@ package com.audioanalyzer.spectrogram;
 
 public class FFTProcessor {
     private int bufferSize;
-    private double[] window;
+    private float[] window;
+    
+    // 配列再利用用のバッファ
+    private float[] realPart;
+    private float[] imagPart;
+    private float[] magnitude;
+    private float[] melCenters;
     
     public FFTProcessor(int bufferSize) {
         android.util.Log.d("AudioSpectrogram", "FFTProcessor初期化開始 - bufferSize: " + bufferSize);
@@ -12,6 +18,15 @@ public class FFTProcessor {
         android.util.Log.d("AudioSpectrogram", "bufferSize調整: " + bufferSize + " -> " + this.bufferSize);
         
         this.window = createHammingWindow(this.bufferSize);
+        
+        // 配列再利用用のバッファを初期化
+        this.realPart = new float[this.bufferSize];
+        this.imagPart = new float[this.bufferSize];
+        this.magnitude = new float[this.bufferSize / 2];
+        
+        // メルフィルターバンクの中心周波数を事前計算
+        initializeMelCenters();
+        
         android.util.Log.d("AudioSpectrogram", "FFTProcessor初期化完了 - window配列長: " + (window != null ? window.length : "null"));
     }
     
@@ -76,7 +91,181 @@ public class FFTProcessor {
         return magnitude;
     }
     
-    // メルスペクトログラム処理
+    // 配列再利用版メルスペクトログラム処理
+    public void processMelSpectrogramToBuffer(short[] audioData, int length, double[] outputBuffer) {
+        android.util.Log.d("AudioSpectrogram", "processMelSpectrogramToBuffer開始 - audioData: " + (audioData != null ? audioData.length : "null") + ", length: " + length);
+        
+        // FFTを実行（配列再利用）
+        processFFTToBuffer(audioData, length);
+        
+        // メルフィルターバンクを適用（配列再利用）
+        applyMelFilterBankToBuffer(outputBuffer);
+        
+        android.util.Log.d("AudioSpectrogram", "processMelSpectrogramToBuffer完了");
+    }
+    
+    // 配列再利用版FFT処理
+    private void processFFTToBuffer(short[] audioData, int length) {
+        if (audioData == null) {
+            android.util.Log.e("AudioSpectrogram", "audioDataがnullです");
+            return;
+        }
+        
+        // 入力振幅の最大値を計算（正規化用）
+        float maxAmplitude = 0.0f;
+        for (int i = 0; i < length && i < bufferSize; i++) {
+            maxAmplitude = Math.max(maxAmplitude, Math.abs(audioData[i]));
+        }
+        
+        // 正規化係数を計算
+        float normalizationFactor = maxAmplitude > 0 ? 1.0f / maxAmplitude : 1.0f;
+        
+        // 配列をクリア
+        for (int i = 0; i < bufferSize; i++) {
+            realPart[i] = 0.0f;
+            imagPart[i] = 0.0f;
+        }
+        
+        // ハミング窓を適用し、同時に正規化
+        for (int i = 0; i < length && i < bufferSize; i++) {
+            realPart[i] = audioData[i] * window[i] * normalizationFactor;
+        }
+        
+        // FFTを実行
+        fftFloat(realPart, imagPart);
+        
+        // パワースペクトラムを計算（FFTサイズで正規化）
+        float fftNormalization = 1.0f / bufferSize;
+        for (int i = 0; i < magnitude.length; i++) {
+            magnitude[i] = (float)Math.sqrt(realPart[i] * realPart[i] + imagPart[i] * imagPart[i]) * fftNormalization;
+            // dBスケールに変換
+            magnitude[i] = (float)(20 * Math.log10(magnitude[i] + 1e-10));
+        }
+    }
+    
+    // 配列再利用版メルフィルターバンク処理
+    private void applyMelFilterBankToBuffer(double[] outputBuffer) {
+        int numMelBands = 128; // メルバンド数
+        
+        // サンプリング周波数（16000Hz）
+        float sampleRate = 16000.0f;
+        float nyquistFreq = sampleRate / 2.0f;
+        
+        // 各メルバンドの値を計算
+        for (int m = 0; m < numMelBands && m < outputBuffer.length; m++) {
+            float sum = 0.0f;
+            float weightSum = 0.0f;
+            
+            // FFTビンをメルバンドにマッピング
+            for (int k = 0; k < magnitude.length; k++) {
+                float freq = k * nyquistFreq / magnitude.length;
+                
+                // 三角フィルターの重み計算
+                float weight = 0.0f;
+                
+                if (freq >= melCenters[m] && freq <= melCenters[m + 1]) {
+                    // 左側の傾斜
+                    weight = (freq - melCenters[m]) / (melCenters[m + 1] - melCenters[m]);
+                } else if (freq >= melCenters[m + 1] && freq <= melCenters[m + 2]) {
+                    // 右側の傾斜
+                    weight = (melCenters[m + 2] - freq) / (melCenters[m + 2] - melCenters[m + 1]);
+                }
+                
+                if (weight > 0) {
+                    sum += magnitude[k] * weight;
+                    weightSum += weight;
+                }
+            }
+            
+            // 正規化
+            outputBuffer[m] = weightSum > 0 ? sum / weightSum : -80.0;
+            
+            // 最小値を設定（ログスケールでの無音レベル）
+            outputBuffer[m] = Math.max(outputBuffer[m], -80.0);
+        }
+    }
+    
+    // メルフィルターバンクの中心周波数を事前計算
+    private void initializeMelCenters() {
+        int numMelBands = 128;
+        melCenters = new float[numMelBands + 2];
+        
+        // メルスケールでの周波数範囲
+        float minMel = hzToMel(80.0f);   // 最低周波数 80Hz
+        float maxMel = hzToMel(8000.0f); // 最高周波数 8000Hz
+        
+        // メルフィルターバンクの中心周波数を計算
+        for (int i = 0; i < melCenters.length; i++) {
+            float mel = minMel + (maxMel - minMel) * i / (numMelBands + 1);
+            melCenters[i] = melToHz(mel);
+        }
+    }
+    
+    // float版FFT処理
+    private void fftFloat(float[] real, float[] imag) {
+        int n = real.length;
+        
+        // nが2の累乗かチェック
+        if ((n & (n - 1)) != 0) {
+            android.util.Log.e("AudioSpectrogram", "FFTエラー: 配列長が2の累乗ではありません - " + n);
+            return;
+        }
+        
+        // ビット反転
+        for (int i = 1, j = 0; i < n; i++) {
+            int bit = n >> 1;
+            for (; (j & bit) != 0; bit >>= 1) {
+                j ^= bit;
+            }
+            j ^= bit;
+            
+            if (i < j) {
+                float tempReal = real[i];
+                float tempImag = imag[i];
+                real[i] = real[j];
+                imag[i] = imag[j];
+                real[j] = tempReal;
+                imag[j] = tempImag;
+            }
+        }
+        
+        // FFT計算
+        for (int len = 2; len <= n; len <<= 1) {
+            float angle = (float)(-2 * Math.PI / len);
+            float wlenReal = (float)Math.cos(angle);
+            float wlenImag = (float)Math.sin(angle);
+            
+            for (int i = 0; i < n; i += len) {
+                float wReal = 1.0f;
+                float wImag = 0.0f;
+                
+                for (int j = 0; j < len / 2; j++) {
+                    int u = i + j;
+                    int v = i + j + len / 2;
+                    
+                    if (u >= real.length || v >= real.length) {
+                        continue;
+                    }
+                    
+                    float uReal = real[u];
+                    float uImag = imag[u];
+                    float vReal = real[v] * wReal - imag[v] * wImag;
+                    float vImag = real[v] * wImag + imag[v] * wReal;
+                    
+                    real[u] = uReal + vReal;
+                    imag[u] = uImag + vImag;
+                    real[v] = uReal - vReal;
+                    imag[v] = uImag - vImag;
+                    
+                    float tempReal = wReal * wlenReal - wImag * wlenImag;
+                    wImag = wReal * wlenImag + wImag * wlenReal;
+                    wReal = tempReal;
+                }
+            }
+        }
+    }
+    
+    // 元のメソッドも残す（互換性のため）
     public double[] processMelSpectrogram(short[] audioData, int length) {
         android.util.Log.d("AudioSpectrogram", "processMelSpectrogram開始 - audioData: " + (audioData != null ? audioData.length : "null") + ", length: " + length);
         
@@ -99,7 +288,7 @@ public class FFTProcessor {
         }
         
         // 通常のFFTを実行
-        double[] magnitude = processFFT(audioData, length);
+        double[] magnitudeDouble = processFFT(audioData, length);
         
         // FFT結果の統計情報をログ出力（デバッグ用）
         if (magnitude != null && magnitude.length > 0) {
@@ -119,7 +308,7 @@ public class FFTProcessor {
         }
         
         // メルフィルターバンクを適用
-        double[] melSpectrogram = applyMelFilterBank(magnitude);
+        double[] melSpectrogram = applyMelFilterBank(magnitudeDouble);
         
         // メルスペクトログラム結果の統計情報をログ出力（デバッグ用）
         if (melSpectrogram != null && melSpectrogram.length > 0) {
@@ -198,27 +387,37 @@ public class FFTProcessor {
         return melSpectrogram;
     }
     
-    // Hzからメルスケールへの変換
+    // Hzからメルスケールへの変換（float版）
+    private float hzToMel(float hz) {
+        return (float)(2595.0 * Math.log10(1.0 + hz / 700.0));
+    }
+    
+    // メルスケールからHzへの変換（float版）
+    private float melToHz(float mel) {
+        return (float)(700.0 * (Math.pow(10.0, mel / 2595.0) - 1.0));
+    }
+    
+    // Hzからメルスケールへの変換（double版、互換性のため）
     private double hzToMel(double hz) {
         return 2595.0 * Math.log10(1.0 + hz / 700.0);
     }
     
-    // メルスケールからHzへの変換
+    // メルスケールからHzへの変換（double版、互換性のため）
     private double melToHz(double mel) {
         return 700.0 * (Math.pow(10.0, mel / 2595.0) - 1.0);
     }
     
-    private double[] createHammingWindow(int size) {
+    private float[] createHammingWindow(int size) {
         android.util.Log.d("AudioSpectrogram", "ハミング窓作成開始 - size: " + size);
         
         if (size <= 0) {
             android.util.Log.e("AudioSpectrogram", "無効なサイズ: " + size);
-            return new double[1024]; // デフォルトサイズ
+            return new float[1024]; // デフォルトサイズ
         }
         
-        double[] window = new double[size];
+        float[] window = new float[size];
         for (int i = 0; i < size; i++) {
-            window[i] = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (size - 1));
+            window[i] = (float)(0.54 - 0.46 * Math.cos(2 * Math.PI * i / (size - 1)));
         }
         
         android.util.Log.d("AudioSpectrogram", "ハミング窓作成完了 - 配列長: " + window.length);
