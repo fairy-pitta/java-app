@@ -247,8 +247,11 @@ public class MainActivity extends AppCompatActivity {
                     // メルスペクトログラム処理を実行（配列再利用）
                     fft.processMelSpectrogramToBuffer(amp, read, mel);
                     
+                    // 配列のコピーを作成してUIに渡す（バッファ再利用の副作用を回避）
+                    double[] frame = java.util.Arrays.copyOf(mel, mel.length);
+                    
                     // UIスレッドで更新（postを使用して高速化）
-                    spectrogramView.post(() -> spectrogramView.updateSpectrogram(mel));
+                    spectrogramView.post(() -> spectrogramView.updateSpectrogram(frame));
                     
                     // デバッグログ（最初の数フレームのみ）
                     if (frameCount <= 5 || frameCount % 100 == 0) {

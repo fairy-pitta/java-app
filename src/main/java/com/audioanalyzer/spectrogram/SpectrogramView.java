@@ -301,17 +301,26 @@ public class SpectrogramView extends View {
         // ❶ 既存ビットマップを 1px 左へコピー
         spectrogramCanvas.drawBitmap(spectrogramBitmap, -1, 0, null);
         
-        // ❷ 右端 1px の縦列を最新フレームで塗る
+        // ❷ 右端 1px の縦列を最新フレームで塗る（浮動小数点計算で精度向上）
         Paint p = new Paint();
         p.setAntiAlias(false);
         p.setStyle(Paint.Style.FILL);
         
         int h = spectrogramBitmap.getHeight();
+        float binHeight = (float) h / magnitudes.length;  // 各ビンの高さを浮動小数点で計算
+        float top = h;  // 描画開始位置（下から上へ）
+        
         for (int i = 0; i < magnitudes.length; i++) {
             p.setColor(magnitudeToColorLUT(magnitudes[i]));
-            int y0 = h - (i + 1) * h / magnitudes.length;
-            int y1 = h - i * h / magnitudes.length;
-            spectrogramCanvas.drawRect(viewWidth - 1, y0, viewWidth, y1, p);
+            
+            // 浮動小数点で次の位置を計算
+            float nextTop = h - (i + 1) * binHeight;
+            
+            // drawRectで描画（浮動小数点座標を使用）
+            spectrogramCanvas.drawRect(viewWidth - 1, nextTop, viewWidth, top, p);
+            
+            // 次のループのために位置を更新
+            top = nextTop;
         }
         
         // UI スレッドで 60 fps 呼び出し
@@ -319,7 +328,7 @@ public class SpectrogramView extends View {
         
         // デバッグ情報をログ出力（最初の数回のみ）
         if (logCount < 3) {
-            android.util.Log.d("SpectrogramView", "redrawSpectrogramFast: magnitudes.length=" + magnitudes.length + ", width=" + viewWidth + ", height=" + h);
+            android.util.Log.d("SpectrogramView", "redrawSpectrogramFast: magnitudes.length=" + magnitudes.length + ", width=" + viewWidth + ", height=" + h + ", binHeight=" + binHeight);
             logCount++;
         }
     }
