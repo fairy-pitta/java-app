@@ -27,7 +27,10 @@ public class MainActivity extends AppCompatActivity {
     private Thread recordingThread;
     private SpectrogramView spectrogramView;
     private Button recordButton;
+    private Button colorButton;
     private Handler mainHandler;
+    private String[] colorPalettes = {"Fire", "Rainbow", "Ice", "Grey"};
+    private int currentPaletteIndex = 0;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         
         recordButton = findViewById(R.id.recordButton);
+        colorButton = findViewById(R.id.colorButton);
         spectrogramView = findViewById(R.id.spectrogramView);
         mainHandler = new Handler(Looper.getMainLooper());
         
@@ -56,6 +60,20 @@ public class MainActivity extends AppCompatActivity {
                 startRecording();
             }
         });
+        
+        // カラーパレット切り替えボタンの設定
+        if (colorButton != null) {
+            colorButton.setText("カラー: " + colorPalettes[currentPaletteIndex]);
+            colorButton.setOnClickListener(v -> {
+                currentPaletteIndex = (currentPaletteIndex + 1) % colorPalettes.length;
+                String currentPalette = colorPalettes[currentPaletteIndex];
+                colorButton.setText("カラー: " + currentPalette);
+                if (spectrogramView != null) {
+                    spectrogramView.setColorPalette(currentPalette);
+                }
+                Toast.makeText(this, "カラーパレット: " + currentPalette, Toast.LENGTH_SHORT).show();
+            });
+        }
         
         android.util.Log.d("AudioSpectrogram", "onCreate完了");
         

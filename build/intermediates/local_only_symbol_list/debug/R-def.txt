@@ -8,6 +8,7 @@ color primary_color
 color primary_dark
 color white
 drawable ic_launcher_foreground
+id colorButton
 id recordButton
 id spectrogramView
 layout activity_main

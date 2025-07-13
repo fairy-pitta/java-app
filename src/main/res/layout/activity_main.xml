@@ -38,7 +38,19 @@
             android:text="録音開始"
             android:textSize="18sp"
             android:padding="12dp"
-            android:minWidth="200dp"
+            android:minWidth="150dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="@color/button_color" />
+
+        <Button
+            android:id="@+id/colorButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="カラー: Fire"
+            android:textSize="16sp"
+            android:padding="12dp"
+            android:minWidth="120dp"
+            android:layout_marginStart="8dp"
             android:backgroundTint="@color/button_color" />
 
     </LinearLayout>

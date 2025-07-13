@@ -36,6 +36,15 @@ public class SpectrogramView extends View {
     // カラーマップLUT
     private int[] colorLUT = new int[256];
     
+    // 参考リポジトリから取得したカラーパレット
+    private int[] colorRainbow = new int[] { 0xFFFFFFFF, 0xFFFF00FF, 0xFFFF0000, 0xFFFFFF00, 0xFF00FF00, 0xFF00FFFF, 0xFF0000FF, 0xFF000000 };
+    private int[] colorFire = new int[] { 0xFFFFFFFF, 0xFFFFFF00, 0xFFFF0000, 0xFF000000 };
+    private int[] colorIce = new int[] { 0xFFFFFFFF, 0xFF00FFFF, 0xFF0000FF, 0xFF000000 };
+    private int[] colorGrey = new int[] { 0xFFFFFFFF, 0xFF000000 };
+    
+    // 現在使用中のカラーパレット
+    private int[] currentColorPalette = colorFire;
+    
     public SpectrogramView(Context context) {
         super(context);
         init();
@@ -72,47 +81,10 @@ public class SpectrogramView extends View {
     }
     
     private void initializeColorLUT() {
-        // より自然なカラーマップ（紫色の区間を減らし、青-緑-黄-赤のグラデーション）
+        // 参考リポジトリの色補間機能を使用してカラーLUTを生成
         for (int i = 0; i < 256; i++) {
             float normalized = i / 255.0f;
-            
-            // 改良されたカラーマップ（jet風だが紫を抑制）
-            int r, g, b;
-            if (normalized < 0.2f) {
-                // 黒から濃い青
-                float t = normalized * 5;
-                r = 0;
-                g = 0;
-                b = (int) (t * 128);
-            } else if (normalized < 0.4f) {
-                // 濃い青から明るい青
-                float t = (normalized - 0.2f) * 5;
-                r = 0;
-                g = (int) (t * 100);
-                b = (int) (128 + t * 127);
-            } else if (normalized < 0.6f) {
-                // 青から緑
-                float t = (normalized - 0.4f) * 5;
-                r = 0;
-                g = (int) (100 + t * 155);
-                b = (int) (255 - t * 255);
-            } else if (normalized < 0.8f) {
-                // 緑から黄
-                float t = (normalized - 0.6f) * 5;
-                r = (int) (t * 255);
-                g = 255;
-                b = 0;
-            } else {
-                // 黄から赤
-                float t = (normalized - 0.8f) * 5;
-                r = 255;
-                g = (int) (255 - t * 255);
-                b = 0;
-            }
-            
-            colorLUT[i] = Color.rgb(Math.max(0, Math.min(255, r)), 
-                                   Math.max(0, Math.min(255, g)), 
-                                   Math.max(0, Math.min(255, b)));
+            colorLUT[i] = getInterpolatedColor(currentColorPalette, normalized);
         }
     }
     
@@ -197,15 +169,59 @@ public class SpectrogramView extends View {
         // 絶対的な境界を設定（より感度の高い範囲）
         adaptiveMinMagnitude = Math.max(-80, Math.min(-40, adaptiveMinMagnitude));
         adaptiveMaxMagnitude = Math.max(-20, Math.min(10, adaptiveMaxMagnitude));
+    }
+    
+    /**
+     * 参考リポジトリから取得した色補間機能
+     * Calculate rainbow colors
+     */
+    private int ave(int s, int d, float p) {
+        return s + Math.round(p * (d - s));
+    }
+    
+    public int getInterpolatedColor(int[] colors, float unit) {
+        if (unit <= 0) return colors[0];
+        if (unit >= 1) return colors[colors.length - 1];
         
-        // デバッグログ（最初の数フレームのみ）
-        if (logCount < 5) {
-            android.util.Log.d("SpectrogramView", "動的レンジ調整: frameMin=" + String.format("%.1f", frameMin) + 
-                ", frameMax=" + String.format("%.1f", frameMax) + 
-                ", adaptiveMin=" + String.format("%.1f", adaptiveMinMagnitude) + 
-                ", adaptiveMax=" + String.format("%.1f", adaptiveMaxMagnitude));
-            logCount++;
+        float p = unit * (colors.length - 1);
+        int i = (int) p;
+        p -= i;
+
+        // now p is just the fractional part [0...1) and i is the index
+        int c0 = colors[i];
+        int c1 = colors[i + 1];
+        int a = ave(Color.alpha(c0), Color.alpha(c1), p);
+        int r = ave(Color.red(c0), Color.red(c1), p);
+        int g = ave(Color.green(c0), Color.green(c1), p);
+        int b = ave(Color.blue(c0), Color.blue(c1), p);
+
+        return Color.argb(a, r, g, b);
+    }
+    
+    /**
+     * カラーパレットを変更するメソッド
+     */
+    public void setColorPalette(String paletteName) {
+        switch (paletteName) {
+            case "Rainbow":
+                currentColorPalette = colorRainbow;
+                break;
+            case "Fire":
+                currentColorPalette = colorFire;
+                break;
+            case "Ice":
+                currentColorPalette = colorIce;
+                break;
+            case "Grey":
+                currentColorPalette = colorGrey;
+                break;
+            default:
+                currentColorPalette = colorFire;
         }
+        // カラーLUTを再初期化
+        initializeColorLUT();
+        
+        android.util.Log.d("SpectrogramView", "カラーパレット変更: " + paletteName);
     }
     
 
