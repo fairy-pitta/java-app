@@ -2,7 +2,7 @@ package com.audioanalyzer.spectrogram;
 
 public class FFTProcessor {
     private int bufferSize;
-    private float[] window;
+    private SoundEngine soundEngine;
     
     // 配列再利用用のバッファ
     private float[] realPart;
@@ -17,7 +17,9 @@ public class FFTProcessor {
         this.bufferSize = getNextPowerOfTwo(bufferSize);
         android.util.Log.d("AudioSpectrogram", "bufferSize調整: " + bufferSize + " -> " + this.bufferSize);
         
-        this.window = createHammingWindow(this.bufferSize);
+        // SoundEngineを初期化
+        this.soundEngine = new SoundEngine();
+        this.soundEngine.initFSin();
         
         // 配列再利用用のバッファを初期化
         this.realPart = new float[this.bufferSize];
@@ -27,7 +29,7 @@ public class FFTProcessor {
         // メルフィルターバンクの中心周波数を事前計算
         initializeMelCenters();
         
-        android.util.Log.d("AudioSpectrogram", "FFTProcessor初期化完了 - window配列長: " + (window != null ? window.length : "null"));
+        android.util.Log.d("AudioSpectrogram", "FFTProcessor初期化完了 - SoundEngine準備完了");
     }
     
     private int getNextPowerOfTwo(int n) {
@@ -48,42 +50,37 @@ public class FFTProcessor {
             return new double[bufferSize / 2];
         }
         
-        if (window == null) {
-            android.util.Log.e("AudioSpectrogram", "window配列がnullです - 再初期化します");
-            window = createHammingWindow(bufferSize);
+        int n = bufferSize;
+        int log2_n = (int) (Math.log(n)/Math.log(2));
+        
+        // SoundEngineを使用してshortからfloatに変換
+        soundEngine.shortToFloat(audioData, realPart, Math.min(length, n));
+        soundEngine.clearFloat(imagPart, n); // 虚数部をクリア
+        
+        // 残りの部分をゼロで埋める
+        if (length < n) {
+            for (int i = length; i < n; i++) {
+                realPart[i] = 0.0f;
+            }
         }
-        
-        // 入力振幅の最大値を計算（正規化用）
-        double maxAmplitude = 0.0;
-        for (int i = 0; i < length && i < bufferSize; i++) {
-            maxAmplitude = Math.max(maxAmplitude, Math.abs(audioData[i]));
-        }
-        
-        // 正規化係数を計算
-        double normalizationFactor = maxAmplitude > 0 ? 1.0 / maxAmplitude : 1.0;
-        
-        // 音声データをdouble配列に変換
-        double[] realPart = new double[bufferSize];
-        double[] imagPart = new double[bufferSize];
         
         android.util.Log.d("AudioSpectrogram", "ハミング窓適用開始");
         
-        // ハミング窓を適用し、同時に正規化
-        for (int i = 0; i < length && i < bufferSize; i++) {
-            realPart[i] = audioData[i] * window[i] * normalizationFactor;
-            imagPart[i] = 0.0;
-        }
+        // ハミング窓を適用
+        soundEngine.windowHamming(realPart, n);
         
         android.util.Log.d("AudioSpectrogram", "ハミング窓適用完了");
         
         // FFTを実行
-        fft(realPart, imagPart);
+        soundEngine.fft(realPart, imagPart, log2_n, 0);
         
-        // パワースペクトラムを計算（FFTサイズで正規化）
+        // 極座標に変換（magnitude計算）
+        soundEngine.toPolar(realPart, imagPart, n);
+        
+        // パワースペクトラムを計算
         double[] magnitude = new double[bufferSize / 2];
-        double fftNormalization = 1.0 / bufferSize;
         for (int i = 0; i < magnitude.length; i++) {
-            magnitude[i] = Math.sqrt(realPart[i] * realPart[i] + imagPart[i] * imagPart[i]) * fftNormalization;
+            magnitude[i] = realPart[i];
             // dBスケールに変換
             magnitude[i] = 20 * Math.log10(magnitude[i] + 1e-10);
         }
@@ -104,41 +101,41 @@ public class FFTProcessor {
         android.util.Log.d("AudioSpectrogram", "processMelSpectrogramToBuffer完了");
     }
     
-    // 配列再利用版FFT処理
+    // 配列再利用版FFT処理（SoundEngine使用）
     private void processFFTToBuffer(short[] audioData, int length) {
         if (audioData == null) {
             android.util.Log.e("AudioSpectrogram", "audioDataがnullです");
             return;
         }
         
-        // 入力振幅の最大値を計算（正規化用）
-        float maxAmplitude = 0.0f;
-        for (int i = 0; i < length && i < bufferSize; i++) {
-            maxAmplitude = Math.max(maxAmplitude, Math.abs(audioData[i]));
+        int n = bufferSize;
+        int log2_n = (int) (Math.log(n)/Math.log(2));
+        
+        // SoundEngineを使用してshortからfloatに変換
+        soundEngine.shortToFloat(audioData, realPart, Math.min(length, n));
+        soundEngine.clearFloat(imagPart, n); // 虚数部をクリア
+        
+        // 残りの部分をゼロで埋める
+        if (length < n) {
+            for (int i = length; i < n; i++) {
+                realPart[i] = 0.0f;
+            }
         }
         
-        // 正規化係数を計算
-        float normalizationFactor = maxAmplitude > 0 ? 1.0f / maxAmplitude : 1.0f;
-        
-        // 配列をクリア
-        for (int i = 0; i < bufferSize; i++) {
-            realPart[i] = 0.0f;
-            imagPart[i] = 0.0f;
-        }
-        
-        // ハミング窓を適用し、同時に正規化
-        for (int i = 0; i < length && i < bufferSize; i++) {
-            realPart[i] = audioData[i] * window[i] * normalizationFactor;
-        }
+        // ハミング窓を適用
+        soundEngine.windowHamming(realPart, n);
         
         // FFTを実行
-        fftFloat(realPart, imagPart);
+        soundEngine.fft(realPart, imagPart, log2_n, 0);
         
-        // パワースペクトラムを計算（FFTサイズで正規化）
-        float fftNormalization = 1.0f / bufferSize;
+        // 極座標に変換（magnitude計算）
+        soundEngine.toPolar(realPart, imagPart, n);
+        
+        // magnitude配列に結果をコピー（前半のみ使用）
+        System.arraycopy(realPart, 0, magnitude, 0, magnitude.length);
+        
+        // dBスケールに変換
         for (int i = 0; i < magnitude.length; i++) {
-            magnitude[i] = (float)Math.sqrt(realPart[i] * realPart[i] + imagPart[i] * imagPart[i]) * fftNormalization;
-            // dBスケールに変換
             magnitude[i] = (float)(20 * Math.log10(magnitude[i] + 1e-10));
         }
     }
@@ -201,69 +198,7 @@ public class FFTProcessor {
         }
     }
     
-    // float版FFT処理
-    private void fftFloat(float[] real, float[] imag) {
-        int n = real.length;
-        
-        // nが2の累乗かチェック
-        if ((n & (n - 1)) != 0) {
-            android.util.Log.e("AudioSpectrogram", "FFTエラー: 配列長が2の累乗ではありません - " + n);
-            return;
-        }
-        
-        // ビット反転
-        for (int i = 1, j = 0; i < n; i++) {
-            int bit = n >> 1;
-            for (; (j & bit) != 0; bit >>= 1) {
-                j ^= bit;
-            }
-            j ^= bit;
-            
-            if (i < j) {
-                float tempReal = real[i];
-                float tempImag = imag[i];
-                real[i] = real[j];
-                imag[i] = imag[j];
-                real[j] = tempReal;
-                imag[j] = tempImag;
-            }
-        }
-        
-        // FFT計算
-        for (int len = 2; len <= n; len <<= 1) {
-            float angle = (float)(-2 * Math.PI / len);
-            float wlenReal = (float)Math.cos(angle);
-            float wlenImag = (float)Math.sin(angle);
-            
-            for (int i = 0; i < n; i += len) {
-                float wReal = 1.0f;
-                float wImag = 0.0f;
-                
-                for (int j = 0; j < len / 2; j++) {
-                    int u = i + j;
-                    int v = i + j + len / 2;
-                    
-                    if (u >= real.length || v >= real.length) {
-                        continue;
-                    }
-                    
-                    float uReal = real[u];
-                    float uImag = imag[u];
-                    float vReal = real[v] * wReal - imag[v] * wImag;
-                    float vImag = real[v] * wImag + imag[v] * wReal;
-                    
-                    real[u] = uReal + vReal;
-                    imag[u] = uImag + vImag;
-                    real[v] = uReal - vReal;
-                    imag[v] = uImag - vImag;
-                    
-                    float tempReal = wReal * wlenReal - wImag * wlenImag;
-                    wImag = wReal * wlenImag + wImag * wlenReal;
-                    wReal = tempReal;
-                }
-            }
-        }
-    }
+    // SoundEngineを使用するため、独自のFFT実装は不要
     
     // 元のメソッドも残す（互換性のため）
     public double[] processMelSpectrogram(short[] audioData, int length) {
@@ -407,88 +342,7 @@ public class FFTProcessor {
         return 700.0 * (Math.pow(10.0, mel / 2595.0) - 1.0);
     }
     
-    private float[] createHammingWindow(int size) {
-        android.util.Log.d("AudioSpectrogram", "ハミング窓作成開始 - size: " + size);
-        
-        if (size <= 0) {
-            android.util.Log.e("AudioSpectrogram", "無効なサイズ: " + size);
-            return new float[1024]; // デフォルトサイズ
-        }
-        
-        float[] window = new float[size];
-        for (int i = 0; i < size; i++) {
-            window[i] = (float)(0.54 - 0.46 * Math.cos(2 * Math.PI * i / (size - 1)));
-        }
-        
-        android.util.Log.d("AudioSpectrogram", "ハミング窓作成完了 - 配列長: " + window.length);
-        return window;
-    }
+    // SoundEngineのwindowHammingメソッドを使用するため、独自実装は不要
     
-    private void fft(double[] real, double[] imag) {
-        int n = real.length;
-        android.util.Log.d("AudioSpectrogram", "FFT開始 - 配列長: " + n);
-        
-        // nが2の累乗かチェック
-        if ((n & (n - 1)) != 0) {
-            android.util.Log.e("AudioSpectrogram", "FFTエラー: 配列長が2の累乗ではありません - " + n);
-            return;
-        }
-        
-        // ビット反転
-        for (int i = 1, j = 0; i < n; i++) {
-            int bit = n >> 1;
-            for (; (j & bit) != 0; bit >>= 1) {
-                j ^= bit;
-            }
-            j ^= bit;
-            
-            if (i < j && i < real.length && j < real.length) {
-                double tempReal = real[i];
-                double tempImag = imag[i];
-                real[i] = real[j];
-                imag[i] = imag[j];
-                real[j] = tempReal;
-                imag[j] = tempImag;
-            }
-        }
-        
-        // FFT計算
-        for (int len = 2; len <= n; len <<= 1) {
-            double angle = -2 * Math.PI / len;
-            double wlenReal = Math.cos(angle);
-            double wlenImag = Math.sin(angle);
-            
-            for (int i = 0; i < n; i += len) {
-                double wReal = 1.0;
-                double wImag = 0.0;
-                
-                for (int j = 0; j < len / 2; j++) {
-                    int u = i + j;
-                    int v = i + j + len / 2;
-                    
-                    // 配列境界チェック
-                    if (u >= real.length || v >= real.length || u < 0 || v < 0) {
-                        android.util.Log.e("AudioSpectrogram", "FFT配列境界エラー: u=" + u + ", v=" + v + ", length=" + real.length);
-                        continue;
-                    }
-                    
-                    double uReal = real[u];
-                    double uImag = imag[u];
-                    double vReal = real[v] * wReal - imag[v] * wImag;
-                    double vImag = real[v] * wImag + imag[v] * wReal;
-                    
-                    real[u] = uReal + vReal;
-                    imag[u] = uImag + vImag;
-                    real[v] = uReal - vReal;
-                    imag[v] = uImag - vImag;
-                    
-                    double tempReal = wReal * wlenReal - wImag * wlenImag;
-                    wImag = wReal * wlenImag + wImag * wlenReal;
-                    wReal = tempReal;
-                }
-            }
-        }
-        
-        android.util.Log.d("AudioSpectrogram", "FFT完了");
-    }
+    // SoundEngineのfftメソッドを使用するため、独自実装は不要
 }
